@@ -14,18 +14,27 @@ const (
 )
 
 // ShowConnected displays a colorful banner with the public URL and forwarding info.
+// tokenType should be "t" for TCP or "w" (or empty) for web/HTTP tunnels.
 // In interactive mode, shows a colorful banner.
 // In non-interactive mode, logs connection details using structured logging.
-func (d *Display) ShowConnected(publicURL, localAddr string) {
+func (d *Display) ShowConnected(publicURL, localAddr, tokenType string) {
+	label := "Public URL"
+	logKey := "public_url"
+
+	if tokenType == "t" {
+		label = "TCP Endpoint"
+		logKey = "tcp_endpoint"
+	}
+
 	if !d.interactive {
 		// In non-interactive mode, log connection info using slog
 		if localAddr != "" {
 			slog.Info("service is now publicly accessible",
-				slog.String("public_url", publicURL),
+				slog.String(logKey, publicURL),
 				slog.String("forwarding", localAddr))
 		} else {
 			slog.Info("service is now publicly accessible",
-				slog.String("public_url", publicURL))
+				slog.String(logKey, publicURL))
 		}
 
 		return
@@ -61,8 +70,8 @@ func (d *Display) ShowConnected(publicURL, localAddr string) {
 	// Empty line
 	d.printBannerEmptyLine(borderColor)
 
-	// Public URL
-	d.printBannerKeyValue(borderColor, labelColor, urlColor, "Public URL", publicURL)
+	// Public URL / TCP Endpoint
+	d.printBannerKeyValue(borderColor, labelColor, urlColor, label, publicURL)
 
 	// Forwarding
 	if localAddr != "" {

@@ -34,6 +34,15 @@ func RunClientCommand(ctx context.Context, args *args) error {
 	exposeAddr := args.Expose
 	eg, ctx := errgroup.WithContext(ctx)
 
+	// Reject --dummy and --echo-ws for TCP tokens — these flags start HTTP-specific services
+	if tkn.Type == token.TokenTypeTCP && (args.LocalServer || args.EchoWS) {
+		disp.ShowError("Invalid configuration", nil,
+			"--dummy and --echo-ws are only supported with web tokens.\n"+
+				"  Use --expose to forward a TCP service.")
+
+		return fmt.Errorf("--dummy and --echo-ws are only supported with web tokens")
+	}
+
 	// Validate mutual exclusivity of --dummy and --echo-ws
 	if args.LocalServer && args.EchoWS {
 		disp.ShowError("Invalid configuration", nil,
@@ -108,7 +117,7 @@ func RunClientCommand(ctx context.Context, args *args) error {
 				spinner.Success("Connected!")
 			}
 
-			disp.ShowConnected(url, exposeAddr)
+			disp.ShowConnected(url, exposeAddr, string(tkn.Type))
 		}),
 		revclient.WithOnRequest(func(clientIP string) {
 			// Show request separator for each incoming connection

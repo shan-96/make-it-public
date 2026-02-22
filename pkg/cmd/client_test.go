@@ -9,7 +9,9 @@ import (
 )
 
 func TestRunClientCommand(t *testing.T) {
-	testToken := "dGVzdDp0ZXN0" // #nosec G101 -- This is a test token, not a real credential
+	testToken := "dGVzdDp0ZXN0"                // #nosec G101 -- base64("test:test"), old-format web token for tests
+	tcpToken := "dGVzdGtleS10OnRlc3RzZWNyZXQ=" // #nosec G101 -- base64("testkey-t:testsecret"), TCP token for tests
+	webToken := "dGVzdGtleS13OnRlc3RzZWNyZXQ=" // #nosec G101 -- base64("testkey-w:testsecret"), web token for tests
 
 	tests := []struct {
 		name    string
@@ -105,6 +107,44 @@ func TestRunClientCommand(t *testing.T) {
 				LogLevel:    "info",
 			},
 			wantErr: "cannot use both --dummy and --echo-ws flags",
+		},
+		{
+			name: "TCP token with --dummy flag is rejected",
+			args: args{
+				Token:       tcpToken,
+				Server:      "test-server:8080",
+				LocalServer: true,
+				NoTLS:       false,
+				Insecure:    false,
+				LogLevel:    "info",
+			},
+			wantErr: "--dummy and --echo-ws are only supported with web tokens",
+		},
+		{
+			name: "TCP token with --echo-ws flag is rejected",
+			args: args{
+				Token:    tcpToken,
+				Server:   "test-server:8080",
+				EchoWS:   true,
+				NoTLS:    false,
+				Insecure: false,
+				LogLevel: "info",
+			},
+			wantErr: "--dummy and --echo-ws are only supported with web tokens",
+		},
+		{
+			name: "web token with --dummy flag is allowed past TCP check",
+			args: args{
+				Token:       webToken,
+				Server:      "test-server:8080",
+				LocalServer: true,
+				NoTLS:       false,
+				Insecure:    false,
+				LogLevel:    "info",
+				Status:      200,
+			},
+			// Fails at DNS lookup, not at the TCP token check — confirms web tokens pass validation
+			wantErr: "lookup test-server",
 		},
 	}
 

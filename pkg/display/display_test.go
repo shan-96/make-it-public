@@ -63,7 +63,7 @@ func TestDisplay_ShowConnected(t *testing.T) {
 			noColor:     true,
 		}
 
-		disp.ShowConnected("https://test.example.com", "localhost:8080")
+		disp.ShowConnected("https://test.example.com", "localhost:8080", "w")
 
 		output := buf.String()
 		assert.Contains(t, output, "make-it-public")
@@ -83,7 +83,7 @@ func TestDisplay_ShowConnected(t *testing.T) {
 			noColor:     true,
 		}
 
-		disp.ShowConnected("https://test.example.com", "localhost:8080")
+		disp.ShowConnected("https://test.example.com", "localhost:8080", "w")
 
 		// In non-interactive mode, output goes to slog, not to the buffer
 		// The buffer should be empty
@@ -103,11 +103,48 @@ func TestDisplay_ShowConnected(t *testing.T) {
 			noColor:     true,
 		}
 
-		disp.ShowConnected("https://test.example.com", "")
+		disp.ShowConnected("https://test.example.com", "", "w")
 
 		output := buf.String()
 		assert.Contains(t, output, "https://test.example.com")
 		assert.NotContains(t, output, "Forwarding")
+	})
+
+	t.Run("TCP token shows TCP Endpoint label", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		disp := &Display{
+			out:         &buf,
+			errOut:      &buf,
+			interactive: true,
+			noColor:     true,
+		}
+
+		disp.ShowConnected("tcp.example.com:10042", "localhost:5432", "t")
+
+		output := buf.String()
+		assert.Contains(t, output, "TCP Endpoint")
+		assert.NotContains(t, output, "Public URL")
+		assert.Contains(t, output, "tcp.example.com:10042")
+		assert.Contains(t, output, "localhost:5432")
+	})
+
+	t.Run("web token shows Public URL label", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		disp := &Display{
+			out:         &buf,
+			errOut:      &buf,
+			interactive: true,
+			noColor:     true,
+		}
+
+		disp.ShowConnected("https://mykey.example.com", "localhost:8080", "w")
+
+		output := buf.String()
+		assert.Contains(t, output, "Public URL")
+		assert.NotContains(t, output, "TCP Endpoint")
+		assert.Contains(t, output, "https://mykey.example.com")
 	})
 }
 
@@ -313,7 +350,7 @@ func TestBannerFormatting(t *testing.T) {
 			noColor:     true,
 		}
 
-		disp.ShowConnected("https://test.example.com", "localhost:8080")
+		disp.ShowConnected("https://test.example.com", "localhost:8080", "w")
 
 		output := buf.String()
 		lines := strings.Split(output, "\n")
