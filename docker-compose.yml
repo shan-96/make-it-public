@@ -27,6 +27,10 @@ services:
         published: 8082
         protocol: tcp
         mode: host
+      - target: 10000-10999
+        published: 10000-10999
+        protocol: tcp
+        mode: host
     environment:
       - AUTH_REDIS_ADDR=redis:6379
       - AUTH_SALT=${AUTH_SALT:-someRandomSalt}
@@ -42,6 +46,10 @@ services:
       - API_LISTEN=:8082
       - LOG_LEVEL=info
       - LOG_TEXT=false
+      - TCP_LISTEN_HOST=0.0.0.0
+      - TCP_PUBLIC_HOST=${DOMAIN_NAME:-make-it-public.dev}
+      - TCP_PORT_RANGE_MIN=${TCP_PORT_RANGE_MIN:-10000}
+      - TCP_PORT_RANGE_MAX=${TCP_PORT_RANGE_MAX:-10999}
     command: ["server", "run", "all" ]
     volumes:
       - caddy_data:/data:ro
