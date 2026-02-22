@@ -14,6 +14,7 @@ func TestParseKeyID(t *testing.T) {
 		name          string
 		domainPostfix string
 		host          string
+		upstreamHost  string
 		expectedKeyID string
 		wantStatus    int
 	}{
@@ -45,6 +46,54 @@ func TestParseKeyID(t *testing.T) {
 			expectedKeyID: "",
 			wantStatus:    http.StatusNotFound,
 		},
+		{
+			name:          "CNAME proxy: host does not match but upstream host does",
+			domainPostfix: ".example.com",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.example.com",
+			expectedKeyID: "mykey",
+			wantStatus:    http.StatusOK,
+		},
+		{
+			name:          "CNAME proxy: upstream host with port",
+			domainPostfix: ".example.com",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.example.com:443",
+			expectedKeyID: "mykey",
+			wantStatus:    http.StatusOK,
+		},
+		{
+			name:          "CNAME proxy: upstream host wrong domain",
+			domainPostfix: ".example.com",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.otherdomain.com",
+			expectedKeyID: "",
+			wantStatus:    http.StatusNotFound,
+		},
+		{
+			name:          "CNAME proxy: upstream host has no subdomain",
+			domainPostfix: ".example.com",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "example.com",
+			expectedKeyID: "",
+			wantStatus:    http.StatusNotFound,
+		},
+		{
+			name:          "direct access: upstream host also set and both match",
+			domainPostfix: ".example.com",
+			host:          "mykey.example.com",
+			upstreamHost:  "mykey.example.com",
+			expectedKeyID: "mykey",
+			wantStatus:    http.StatusOK,
+		},
+		{
+			name:          "upstream host takes priority over host header",
+			domainPostfix: ".example.com",
+			host:          "other.example.com",
+			upstreamHost:  "mykey.example.com",
+			expectedKeyID: "mykey",
+			wantStatus:    http.StatusOK,
+		},
 	}
 
 	for _, tt := range tests {
@@ -60,6 +109,11 @@ func TestParseKeyID(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 			req.Host = tt.host
+
+			if tt.upstreamHost != "" {
+				req.Header.Set(UpstreamHostHeader, tt.upstreamHost)
+			}
+
 			rec := httptest.NewRecorder()
 
 			handler.ServeHTTP(rec, req)
@@ -107,7 +161,99 @@ func TestGetKeyID(t *testing.T) {
 	}
 }
 
-func TestGetUserIDFromRequest(t *testing.T) {
+func TestResolveHost(t *testing.T) {
+	tests := []struct {
+		name          string
+		host          string
+		upstreamHost  string
+		domainPostfix string
+		expected      string
+	}{
+		{
+			name:          "direct access: host matches domain",
+			host:          "mykey.example.com",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "direct access: host with port",
+			host:          "mykey.example.com:8080",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "direct access: host does not match domain",
+			host:          "mykey.other.com",
+			domainPostfix: ".example.com",
+			expected:      "",
+		},
+		{
+			name:          "CNAME proxy: upstream host matches domain",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.example.com",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "CNAME proxy: upstream host with port",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.example.com:443",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "CNAME proxy: upstream host wrong domain",
+			host:          "app.custom-domain.com",
+			upstreamHost:  "mykey.otherdomain.com",
+			domainPostfix: ".example.com",
+			expected:      "",
+		},
+		{
+			name:          "upstream host takes priority over host header",
+			host:          "other.example.com",
+			upstreamHost:  "mykey.example.com",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "both headers empty",
+			host:          "",
+			upstreamHost:  "",
+			domainPostfix: ".example.com",
+			expected:      "",
+		},
+		{
+			name:          "upstream host empty falls back to host",
+			host:          "mykey.example.com",
+			upstreamHost:  "",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+		{
+			name:          "upstream host invalid domain falls back to host",
+			host:          "mykey.example.com",
+			upstreamHost:  "mykey.invalid.com",
+			domainPostfix: ".example.com",
+			expected:      "mykey.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			req.Host = tt.host
+
+			if tt.upstreamHost != "" {
+				req.Header.Set(UpstreamHostHeader, tt.upstreamHost)
+			}
+
+			actual := resolveHost(req, tt.domainPostfix)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func TestExtractKeyIDFromHost(t *testing.T) {
 	tests := []struct {
 		name     string
 		host     string
@@ -138,15 +284,16 @@ func TestGetUserIDFromRequest(t *testing.T) {
 			host:     ".example.com",
 			expected: "",
 		},
+		{
+			name:     "host with port",
+			host:     "keyID.example.com:8080",
+			expected: "keyID",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-			req.Host = tt.host
-
-			actual := getUserIDFromRequest(req)
-
+			actual := extractKeyIDFromHost(tt.host)
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
