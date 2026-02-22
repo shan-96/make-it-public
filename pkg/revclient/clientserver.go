@@ -102,7 +102,7 @@ func (s *ClientServer) Run(ctx context.Context) error {
 		slog.Bool("no_tls", s.cfg.NoTLS),
 		slog.Bool("insecure", s.cfg.Insecure))
 
-	authOpt, err := revdial.WithUserPass(s.token.ID, s.token.Secret)
+	authOpt, err := revdial.WithUserPass(s.token.IDWithType(), s.token.Secret)
 	if err != nil {
 		return fmt.Errorf("failed to create auth option: %w", err)
 	}

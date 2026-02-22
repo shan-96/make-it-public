@@ -45,7 +45,10 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 		proto.WithUserPassAuth(func(keyID, secret string) bool {
 			valid, tokenType, err := s.auth.Verify(ctx, keyID, secret)
 			if err == nil && valid {
-				connKeyID = keyID
+				// Strip the type suffix so connKeyID matches what edge servers
+				// extract from subdomains / TCP port mappings (e.g. "mykey", not "mykey-w").
+				baseID, _, _ := token.ExtractIDAndType(keyID)
+				connKeyID = baseID
 				connTokenType = tokenType
 
 				return true
