@@ -17,7 +17,7 @@ type ControlConn interface {
 }
 
 type AuthRepo interface {
-	Verify(ctx context.Context, keyID, secret string) (bool, token.TokenType, error)
+	Verify(ctx context.Context, keyID, secret string) (*token.Token, error)
 	SaveToken(ctx context.Context, t *token.Token) error
 	DeleteToken(ctx context.Context, tokenID string) error
 	IsKeyExists(ctx context.Context, keyID string) (bool, error)

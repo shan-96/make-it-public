@@ -222,38 +222,33 @@ func (_c *MockAuthRepo_SaveToken_Call) RunAndReturn(run func(context.Context, *t
 }
 
 // Verify provides a mock function with given fields: ctx, keyID, secret
-func (_m *MockAuthRepo) Verify(ctx context.Context, keyID string, secret string) (bool, token.TokenType, error) {
+func (_m *MockAuthRepo) Verify(ctx context.Context, keyID string, secret string) (*token.Token, error) {
 	ret := _m.Called(ctx, keyID, secret)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Verify")
 	}
 
-	var r0 bool
-	var r1 token.TokenType
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (bool, token.TokenType, error)); ok {
+	var r0 *token.Token
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*token.Token, error)); ok {
 		return rf(ctx, keyID, secret)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *token.Token); ok {
 		r0 = rf(ctx, keyID, secret)
 	} else {
-		r0 = ret.Get(0).(bool)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*token.Token)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) token.TokenType); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
 		r1 = rf(ctx, keyID, secret)
 	} else {
-		r1 = ret.Get(1).(token.TokenType)
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
-		r2 = rf(ctx, keyID, secret)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 // MockAuthRepo_Verify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Verify'
@@ -276,12 +271,12 @@ func (_c *MockAuthRepo_Verify_Call) Run(run func(ctx context.Context, keyID stri
 	return _c
 }
 
-func (_c *MockAuthRepo_Verify_Call) Return(_a0 bool, _a1 token.TokenType, _a2 error) *MockAuthRepo_Verify_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *MockAuthRepo_Verify_Call) Return(_a0 *token.Token, _a1 error) *MockAuthRepo_Verify_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockAuthRepo_Verify_Call) RunAndReturn(run func(context.Context, string, string) (bool, token.TokenType, error)) *MockAuthRepo_Verify_Call {
+func (_c *MockAuthRepo_Verify_Call) RunAndReturn(run func(context.Context, string, string) (*token.Token, error)) *MockAuthRepo_Verify_Call {
 	_c.Call.Return(run)
 	return _c
 }

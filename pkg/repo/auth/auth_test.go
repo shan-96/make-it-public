@@ -15,13 +15,12 @@ import (
 
 func TestRepo_Verify(t *testing.T) {
 	tests := []struct {
-		wantErr       error
-		mockSetup     func(m redismock.ClientMock)
-		name          string
-		keyID         string
-		secret        string
-		wantTokenType token.TokenType
-		want          bool
+		wantErr   error
+		mockSetup func(m redismock.ClientMock)
+		wantToken *token.Token
+		name      string
+		keyID     string
+		secret    string
 	}{
 		{
 			name:   "valid key with matching secret (web token)",
@@ -32,9 +31,8 @@ func TestRepo_Verify(t *testing.T) {
 				assert.NoError(t, err)
 				m.ExpectGet("prefix::API_KEY::key123").SetVal(val)
 			},
-			want:          true,
-			wantTokenType: token.TokenTypeWeb,
-			wantErr:       nil,
+			wantToken: &token.Token{ID: "key123", Type: token.TokenTypeWeb},
+			wantErr:   nil,
 		},
 		{
 			name:   "valid key with matching secret (tcp token)",
@@ -45,9 +43,8 @@ func TestRepo_Verify(t *testing.T) {
 				assert.NoError(t, err)
 				m.ExpectGet("prefix::API_KEY::key456").SetVal(val)
 			},
-			want:          true,
-			wantTokenType: token.TokenTypeTCP,
-			wantErr:       nil,
+			wantToken: &token.Token{ID: "key456", Type: token.TokenTypeTCP},
+			wantErr:   nil,
 		},
 		{
 			name:   "valid key with non-matching secret",
@@ -56,9 +53,8 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetVal("secret123")
 			},
-			want:          false,
-			wantTokenType: "",
-			wantErr:       nil,
+			wantToken: nil,
+			wantErr:   nil,
 		},
 		{
 			name:   "key does not exist",
@@ -67,9 +63,8 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").RedisNil()
 			},
-			want:          false,
-			wantTokenType: "",
-			wantErr:       nil,
+			wantToken: nil,
+			wantErr:   nil,
 		},
 		{
 			name:   "redis error",
@@ -78,9 +73,8 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				m.ExpectGet("prefix::API_KEY::key123").SetErr(assert.AnError)
 			},
-			want:          false,
-			wantTokenType: "",
-			wantErr:       assert.AnError,
+			wantToken: nil,
+			wantErr:   assert.AnError,
 		},
 		{
 			name:   "invalid key ID without type suffix",
@@ -89,9 +83,8 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				// No mock needed, should fail before reaching Redis
 			},
-			want:          false,
-			wantTokenType: "",
-			wantErr:       token.ErrInvalidTypeSuffix,
+			wantToken: nil,
+			wantErr:   token.ErrInvalidTypeSuffix,
 		},
 		{
 			name:   "invalid key ID with wrong type suffix",
@@ -100,9 +93,8 @@ func TestRepo_Verify(t *testing.T) {
 			mockSetup: func(m redismock.ClientMock) {
 				// No mock needed, should fail before reaching Redis
 			},
-			want:          false,
-			wantTokenType: "",
-			wantErr:       token.ErrInvalidTypeSuffix,
+			wantToken: nil,
+			wantErr:   token.ErrInvalidTypeSuffix,
 		},
 	}
 
@@ -116,7 +108,7 @@ func TestRepo_Verify(t *testing.T) {
 				keyPrefix: "prefix::",
 			}
 
-			got, tokenType, err := r.Verify(context.Background(), tt.keyID, tt.secret)
+			got, err := r.Verify(context.Background(), tt.keyID, tt.secret)
 			if tt.wantErr != nil {
 				require.Error(t, err)
 				assert.ErrorIs(t, err, tt.wantErr)
@@ -124,8 +116,13 @@ func TestRepo_Verify(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.wantTokenType, tokenType)
+			if tt.wantToken == nil {
+				assert.Nil(t, got)
+			} else {
+				require.NotNil(t, got)
+				assert.Equal(t, tt.wantToken.ID, got.ID)
+				assert.Equal(t, tt.wantToken.Type, got.Type)
+			}
 		})
 	}
 }

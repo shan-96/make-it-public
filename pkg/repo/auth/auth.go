@@ -82,18 +82,19 @@ func (r *Repo) IsKeyExists(ctx context.Context, keyID string) (bool, error) {
 // Verify checks if the provided secret matches the stored value for the given keyID.
 // It retrieves the value from the database using the keyID (with type suffix stripped).
 // The keyID must contain a valid type suffix (e.g., "mykey-w" or "mykey-t").
-// Returns true if the secret matches, the token type extracted from keyID, and error if validation fails.
-// Returns an error if the keyID doesn't have a valid type suffix.
-func (r *Repo) Verify(ctx context.Context, keyIDWithSuffix, secret string) (bool, token.TokenType, error) {
+// Returns a *token.Token populated with the base key ID and token type on success.
+// Returns nil, nil if the credentials are invalid (key not found or secret mismatch).
+// Returns nil, error if the keyID suffix is malformed or a storage error occurs.
+func (r *Repo) Verify(ctx context.Context, keyIDWithSuffix, secret string) (*token.Token, error) {
 	secretHash, err := hashSecret(secret, r.salt)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to hash secret: %w", err)
+		return nil, fmt.Errorf("failed to hash secret: %w", err)
 	}
 
 	// Extract base ID and type from keyID with suffix (e.g., "mykey-w" -> "mykey", "w")
 	baseKeyID, tokenType, err := token.ExtractIDAndType(keyIDWithSuffix)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to extract token type from key ID: %w", err)
+		return nil, fmt.Errorf("failed to extract token type from key ID: %w", err)
 	}
 
 	res := r.db.Get(ctx, r.keyPrefix+apiKeyPrefix+baseKeyID)
@@ -101,14 +102,14 @@ func (r *Repo) Verify(ctx context.Context, keyIDWithSuffix, secret string) (bool
 	switch res.Err() {
 	case nil:
 		if res.Val() != secretHash {
-			return false, "", nil
+			return nil, nil
 		}
 
-		return true, tokenType, nil
+		return &token.Token{ID: baseKeyID, Type: tokenType}, nil
 	case redis.Nil:
-		return false, "", nil
+		return nil, nil
 	default:
-		return false, "", fmt.Errorf("failed to get key: %w", res.Err())
+		return nil, fmt.Errorf("failed to get key: %w", res.Err())
 	}
 }
 

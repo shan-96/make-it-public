@@ -43,20 +43,20 @@ func (s *Service) HandleReverseConn(ctx context.Context, revConn net.Conn) error
 	// V2 provides yamux multiplexing for better performance
 	baseOpts := []proto.ServerOption{
 		proto.WithUserPassAuth(func(keyID, secret string) bool {
-			valid, tokenType, err := s.auth.Verify(ctx, keyID, secret)
-			if err == nil && valid {
-				// Strip the type suffix so connKeyID matches what edge servers
-				// extract from subdomains / TCP port mappings (e.g. "mykey", not "mykey-w").
-				baseID, _, _ := token.ExtractIDAndType(keyID)
-				connKeyID = baseID
-				connTokenType = tokenType
-
-				return true
-			} else if err != nil {
+			t, err := s.auth.Verify(ctx, keyID, secret)
+			if err != nil {
 				slog.ErrorContext(ctx, "failed to verify user", slog.Any("error", err))
+				return false
 			}
 
-			return false
+			if t == nil {
+				return false
+			}
+
+			connKeyID = t.ID
+			connTokenType = t.Type
+
+			return true
 		}),
 	}
 
