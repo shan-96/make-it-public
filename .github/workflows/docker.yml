@@ -120,7 +120,9 @@ jobs:
       environment_vars: |
         {
           "MIT_VERSION": "${{ needs.build-app.outputs.version }}",
-          "NETWORK_NAME": "mit-network"
+          "NETWORK_NAME": "mit-network",
+          "TCP_PORT_RANGE_MIN": "10000",
+          "TCP_PORT_RANGE_MAX": "10999"
         }
     secrets:
       ssh_key: ${{ secrets.SSH_KEY }}

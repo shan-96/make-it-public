@@ -34,6 +34,10 @@ services:
       - API_LISTEN=:8082
       - LOG_LEVEL=info
       - LOG_TEXT=false
+      - TCP_LISTEN_HOST=0.0.0.0
+      - TCP_PUBLIC_HOST=${DOMAIN_NAME}
+      - TCP_PORT_RANGE_MIN=${TCP_PORT_RANGE_MIN:-10000}
+      - TCP_PORT_RANGE_MAX=${TCP_PORT_RANGE_MAX:-10999}
     command: ["server", "run", "all"]
     volumes:
       - caddy_data:/data:ro
@@ -50,6 +54,12 @@ services:
       # Other services can connect to this via host IP:8082
       - target: 8082
         published: 8082
+        protocol: tcp
+        mode: host
+      # Expose TCP edge ports on host for direct TCP client connections
+      # TCP traffic bypasses Caddy entirely
+      - target: 10000-10999
+        published: 10000-10999
         protocol: tcp
         mode: host
     healthcheck:
