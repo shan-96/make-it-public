@@ -25,9 +25,9 @@ archives:
 checksum:
   name_template: "checksums.txt"
 changelog:
-  sort: asc
+  use: github
 release:
-  draft: true
+  draft: false
   github:
     owner: ksysoev
     name: make-it-public
@@ -41,7 +41,7 @@ brews:
       name: homebrew-make-it-public
     skip_upload: auto
     directory: Formula
-    homepage: "https://gihub.com/ksysoev/make-it-public"
+    homepage: "https://github.com/ksysoev/make-it-public"
     description: "make-it-public binary"
     test: |
       system "#{bin}/mit"
