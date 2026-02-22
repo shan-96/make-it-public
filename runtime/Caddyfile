@@ -49,8 +49,14 @@
 # header contains the user's custom domain (e.g., app.example.com).
 # Caddy routes by Host header, so these requests don't match the
 # *.{$DOMAIN_NAME} block above. This catch-all handles them instead.
-# The edge middleware validates X-Upstream-Host against the configured
-# domain, so requests with invalid SNI values are rejected with 404.
+#
+# Only forward to the backend when TLS SNI is a subdomain of DOMAIN_NAME,
+# confirming the request targets a real tunnel. Everything else gets a 404
+# at the Caddy layer, avoiding unnecessary backend load.
 :443 {
-    import mit_proxy
+    @valid_sni expression {http.request.tls.server_name}.endsWith('.{$DOMAIN_NAME}')
+    handle @valid_sni {
+        import mit_proxy
+    }
+    respond 404
 }
