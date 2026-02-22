@@ -8,12 +8,20 @@
     acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 }
 
-{$DOMAIN_NAME} {
-	file_server
-}
+# Snippet for proxying to the MIT edge server.
+# Strips any client-supplied X-Upstream-Host header to prevent spoofing,
+# then injects the TLS server name (SNI) as X-Upstream-Host.
+# This enables CNAME proxy support: when a CDN like Cloudflare proxies a
+# request via CNAME, the Host header contains the custom domain but the
+# TLS SNI contains the CNAME target (the tunnel subdomain).
+(mit_proxy) {
+    # Security: strip client-supplied header before injecting from TLS layer
+    request_header -X-Upstream-Host
 
-*.{$DOMAIN_NAME} {
     reverse_proxy http://mitserver:8080 {
+        # Inject TLS server name so the edge can resolve the tunnel keyID
+        # even when the Host header doesn't match the configured domain
+        header_up X-Upstream-Host {http.request.tls.server_name}
         transport http {
             proxy_protocol v2
         }
@@ -23,4 +31,32 @@
         output stdout
         format console
     }
+}
+
+{$DOMAIN_NAME} {
+	file_server
+}
+
+# Handles direct subdomain access (e.g., mykey.make-it-public.dev)
+# where the Host header matches *.DOMAIN.
+*.{$DOMAIN_NAME} {
+    import mit_proxy
+}
+
+# Catch-all for CNAME proxy requests on port 443.
+# When a CDN (e.g., Cloudflare in proxy mode) forwards a CNAME request,
+# the TLS SNI matches *.DOMAIN (using the wildcard cert) but the Host
+# header contains the user's custom domain (e.g., app.example.com).
+# Caddy routes by Host header, so these requests don't match the
+# *.{$DOMAIN_NAME} block above. This catch-all handles them instead.
+#
+# Only forward to the backend when TLS SNI is a subdomain of DOMAIN_NAME,
+# confirming the request targets a real tunnel. Everything else gets a 404
+# at the Caddy layer, avoiding unnecessary backend load.
+:443 {
+    @valid_sni expression {http.request.tls.server_name}.endsWith('.{$DOMAIN_NAME}')
+    handle @valid_sni {
+        import mit_proxy
+    }
+    respond 404
 }
