@@ -25,27 +25,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 changelog:
-  sort: asc
-  groups:
-    - title: Features
-      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
-      order: 0
-    - title: Bug Fixes
-      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
-      order: 1
-    - title: Refactoring
-      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
-      order: 2
-    - title: Others
-      order: 999
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^ci:'
-      - '^chore:'
-      - '^Merge pull request'
-      - '^Merge branch'
+  use: github
 release:
   draft: false
   github:
