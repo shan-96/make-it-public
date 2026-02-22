@@ -67,18 +67,25 @@ func resolveHost(r *http.Request, domainPostfix string) string {
 	// This header is trusted because Caddy strips any client-supplied value before injecting its own.
 	if upstreamHost := r.Header.Get(UpstreamHostHeader); upstreamHost != "" {
 		host := strings.Split(upstreamHost, ":")[0]
-		if strings.HasSuffix(host, domainPostfix) {
+		if matchesDomain(host, domainPostfix) {
 			return host
 		}
 	}
 
 	// Priority 2: Direct Host header (normal subdomain access).
 	host := strings.Split(r.Host, ":")[0]
-	if strings.HasSuffix(host, domainPostfix) {
+	if matchesDomain(host, domainPostfix) {
 		return host
 	}
 
 	return ""
+}
+
+// matchesDomain reports whether host is equal to domain or is a subdomain of it.
+// It enforces DNS label boundaries, so "evil-example.com" does not match "example.com".
+// domainPostfix is the bare domain name without a leading dot (e.g. "make-it-public.dev").
+func matchesDomain(host, domainPostfix string) bool {
+	return host == domainPostfix || strings.HasSuffix(host, "."+domainPostfix)
 }
 
 // extractKeyIDFromHost extracts the subdomain (key ID) from a fully qualified host string.
