@@ -44,24 +44,9 @@ services:
     networks:
       - backend
     ports:
-      # Expose reverse proxy port on host for MIT clients to connect
-      # MIT clients connect to this port to establish tunnels
-      - target: 8081
-        published: 8081
-        protocol: tcp
-        mode: host
-      # Expose API port on host for other services to access
-      # Other services can connect to this via host IP:8082
-      - target: 8082
-        published: 8082
-        protocol: tcp
-        mode: host
-      # Expose TCP edge ports on host for direct TCP client connections
-      # TCP traffic bypasses Caddy entirely
-      - target: 10000-10999
-        published: 10000-10999
-        protocol: tcp
-        mode: host
+      - "8081:8081"
+      - "8082:8082"
+      - "10000-10999:10000-10999"
     healthcheck:
       test: ["CMD", "/mit", "server", "check"]
       interval: 30s
